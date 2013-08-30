@@ -1,0 +1,63 @@
+#!/bin/bash
+
+# Written by prurigro | https://github.com/prurigro | https://aur.archlinux.org/packages/?SeB=m&K=prurigro
+# Distributed under the GPLv3; copies can be obtained on gnu.org @ http://www.gnu.org/copyleft/gpl.html
+
+# Run this script by itself to download and patch the latest ROM for your device, or supply the date (YYYYMMDD) of another ROM as an argument to download that instead
+# Available patches: pdroid,openpdroid,voice,v6supercharger,voice,insecure,secure,external_internal,tabletUI,3gdongle,pd2.0
+
+## SETTINGS (EDIT THESE) ##
+DEVICE_NAME="t0lte" #Set $DEVICE_NAME to the name your device is given on http://get.cm
+AP_PATCHES="openpdroid" #Set the patches you'd like separated by commas
+AP_PARENTDIR="/home/user" #Set $AP_PARENTDIR to the directory containing the auto-patcher repo
+AP_GITREPO="https://github.com/mateor/auto-patcher.git" #Set to the URL the auto-patcher git repo is located at (you shouldn't need to change this)
+###########################
+
+#Do not touch these variables unless you know what you're doing!
+CURDIR="${PWD}" #The directory you ran this script from
+
+#Generate a list of ROMs and their associated md5sums in $ROMLIST, then select either the most recent ROM or the one from the date given as a commandline argument
+ROMLIST=$(wget -q -O - http://get.cm/?device="${DEVICE_NAME}" | sed ':a;N;$!ba;s/\n/\^/g' | grep -o -e "\/[A-Za-z0-9\/]*\/cm-[^-]*-[^\.]*\.zip[^:]*\: [0-9a-z]*" | sed 's/\/get/http:\/\/get\.cm\/get/g;s/\".*: / /g')
+ROMSELECT=$(echo "${ROMLIST}" | grep -o -m 1 -e "http.*cm-[^-]*-${1}.*")
+if [ -z "${ROMSELECT}" ]; then echo "Error: No ROM exists with the date: ${1}"; exit 1; fi
+
+ROMURL=$(echo "${ROMSELECT}" | sed 's/ .*//') #The URL of the latest ROM
+ROMMD5=$(echo "${ROMSELECT}" | sed 's/[^ ]* //') #The MD5SUM of the ROM
+ROMNAME=$(echo "${ROMURL}" | sed 's/.*\/cm/cm/') #Filename of the latest ROM
+DIRNAME=$(echo "${ROMNAME}" | sed 's/\.zip//') #Name of the directory that will contain the latest ROM and its patches
+
+#Clone the auto-patcher repo if its not already available
+if [ ! -d "${AP_PARENTDIR}/auto-patcher" ]; then
+    if [ ! -d "${AP_PARENTDIR}" ]; then echo "Error: ${AP_PARENTDIR} does not exist"; exit 1
+    else cd "${AP_PARENTDIR}"; git clone "${AP_GITREPO}"; sh auto-patcher/batch.sh; cd "${CURDIR}"; fi
+fi
+
+if [ ! -f "${CURDIR}/${DIRNAME}/${ROMNAME}" ]; then
+    #Create the directory containing your ROM and patches if it doesn't already exist
+    if [ ! -d "${CURDIR}/${DIRNAME}" ]; then mkdir "${CURDIR}/${DIRNAME}" && echo "The directory ${CURDIR}/${DIRNAME} has been created"; fi
+    
+    #Download the latest ROM to the directory
+    wget "${ROMURL}" -O "${CURDIR}/${DIRNAME}/${ROMNAME}" && echo "The ROM has been successfully downloaded"
+else
+    echo "The latest ROM already exists in this folder and will be used"
+fi
+
+#Check the md5sum of the downloaded ROM against the one provided on the website
+if [ ! $(md5sum "${CURDIR}/${DIRNAME}/${ROMNAME}" | sed 's/\ .*//' | grep -c "${ROMMD5}") = 1 ]; then
+    echo "Error: ROM's md5sum does not match the provided value"; exit 1
+else
+    echo "The ROM's md5sum matches the provided value"
+fi
+
+#Change to the directory containing auto-patcher
+cd "${AP_PARENTDIR}/auto-patcher"
+
+#Pull from the repo and run ./batch.sh if there were any changes
+if [ $(git pull | grep -c "up-to-date") = 0 ]; then ./batch.sh; fi
+
+#Run auto_patcher on the ROM to build the patches specified above
+./auto_patcher "${CURDIR}/${DIRNAME}/${ROMNAME}" "${AP_PATCHES}"
+
+#If successful, move the resulting update and restore patches to ${CURDIR}
+if [ ! $(ls -1 update*.zip | wc -l) = 0 ]; then mv update*.zip "${CURDIR}/${DIRNAME}/"; fi
+if [ ! $(ls -1 restore*.zip | wc -l) = 0 ]; then mv restore*.zip "${CURDIR}/${DIRNAME}/"; fi
