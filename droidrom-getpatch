@@ -1,26 +1,35 @@
 #!/bin/bash
 
-# Written by prurigro | https://github.com/prurigro | https://aur.archlinux.org/packages/?SeB=m&K=prurigro
+# droidrom-getpatch
+
+# Written by prurigro (https://github.com/prurigro | https://aur.archlinux.org/packages/?SeB=m&K=prurigro)
 # Distributed under the GPLv3; copies can be obtained on gnu.org @ http://www.gnu.org/copyleft/gpl.html
 
-# Run this script by itself to download and patch the latest ROM for your device, or supply the date (YYYYMMDD) of another ROM as an argument to download that instead
+# Run this script by itself to download and patch the latest ROM for your device, or specify by supplying the date (YYYYMMDD) or the release type as an argument
 # Available patches: pdroid,openpdroid,voice,v6supercharger,voice,insecure,secure,external_internal,tabletUI,3gdongle,pd2.0
 
 ## SETTINGS (EDIT THESE) ##
-DEVICE_NAME="t0lte" #Set $DEVICE_NAME to the name your device is given on http://download.cyanogenmod.org
+ROM_TYPE="omni" #Set: "omni" for omnirom or "cm" for cyanogenmod
+DEVICE_NAME="t0lte" #Set $DEVICE_NAME to the name your device
 AP_PATCHES="openpdroid" #Set the patches you'd like separated by commas
-AP_PARENTDIR="$HOME" #Set $AP_PARENTDIR to the directory containing the auto-patcher repo
-
-#Do not touch these variables unless you know what you're doing!
-CURDIR="${PWD}" #The directory you ran this script from
+AP_PARENTDIR="$HOME" #Set $AP_PARENTDIR to the directory containing the auto-patcher repo folder
 AP_GITREPO="https://github.com/mateor/auto-patcher.git" #Set to the URL the auto-patcher git repo is located at (you shouldn't need to change this)
-ROMLIST=$(wget -q -O - http://download.cyanogenmod.org/?device="${DEVICE_NAME}" | sed ':a;N;$!ba;s/\n/\^/g' | grep -o -e "\/[A-Za-z0-9\/]*\/cm-[^-]*-[^\.]*\.zip[^:]*\: [0-9a-z]*" | sed 's/\/get/http:\/\/download\.cyanogenmod\.org\/get/g;s/\".*: / /g') #Generate a list of ROMs and their associated md5sums in $ROMLIST, then select either the most recent ROM or the one from the date given as a commandline argument
-ROMSELECT=$(echo "${ROMLIST}" | grep -o -m 1 -e "http.*cm-[^-]*-${1}.*") #Select the first ROM in the list, or the first one matching the user supplied argument
+
+## Do not touch these variables unless you know what you're doing! ##
+#Generate a list of ROMs and their associated md5sums in $ROMLIST, then select either the most recent ROM or the one from the date given as a commandline argument
+if [ ${ROM_TYPE} = "omni" ]; then ROMLIST=$(wget -q -O - http://dl.omnirom.org/"${DEVICE_NAME}" | sed ':a;N;$!ba;s/\n/\^/g' | grep -o -e "\"\/[A-Za-z0-9]*\/omni[0-9\.\-]*[^\.]*\.zip\"" | sed 's/\"/http:\/\/dl\.omnirom\.org/;s/\"//;s/\".*: / /g' | tac)
+elif [ ${ROM_TYPE} = "cm" ]; then ROMLIST=$(wget -q -O - http://download.cyanogenmod.org/?device="${DEVICE_NAME}" | sed ':a;N;$!ba;s/\n/\^/g' | grep -o -e "\/[A-Za-z0-9\/]*\/cm-[^-]*-[^\.]*\.zip[^:]*\: [0-9a-z]*" | sed 's/\/get/http:\/\/download\.cyanogenmod\.org\/get/g;s/\".*: / /g')
+else echo "Invalid ROM_TYPE selected: ${ROM_TYPE}"; exit 1; fi
+
+CURDIR="${PWD}" #The directory you ran this script from
+ROMSELECT=$(echo "${ROMLIST}" | grep -o -m 1 -e "http.*${ROM_TYPE}-[^-]*-${1}.*") #Select the first ROM in the list, or the first one matching the user supplied argument
 if [ -z "${ROMSELECT}" ]; then echo "Error: No ROM exists with the date: ${1}"; exit 1; fi
 ROMURL=$(echo "${ROMSELECT}" | sed 's/ .*//') #The URL of the latest ROM
-ROMMD5=$(echo "${ROMSELECT}" | sed 's/[^ ]* //') #The MD5SUM of the ROM
-ROMNAME=$(echo "${ROMURL}" | sed 's/.*\/cm/cm/') #Filename of the latest ROM
+ROMNAME=$(echo "${ROMURL}" | sed "s/.*\/${ROM_TYPE}/${ROM_TYPE}/") #Filename of the latest ROM
 DIRNAME=$(echo "${ROMNAME}" | sed 's/\.zip//') #Name of the directory that will contain the latest ROM and its patches
+if [ ${ROM_TYPE} = "omni" ]; then ROMMD5=$(wget -q -O - "${ROMSELECT}.md5sum" | grep -o -e "^[^\ ]*") #The MD5SUM of the Omni ROM
+elif [ ${ROM_TYPE} = "cm" ]; then ROMMD5=$(echo "${ROMSELECT}" | sed 's/[^ ]* //'); fi #The MD5SUM of the CyanogenMod ROM
+unset _JAVA_OPTIONS #This setting can do things like make fonts in Java less horrible, but it also causes issues with auto_patcher
 
 #Check the md5sum of the downloaded ROM against the one provided on the website
 function checkrom {
@@ -51,11 +60,16 @@ if [ ! -f "${CURDIR}/${DIRNAME}/${ROMNAME}" ]; then echo "ROM doesn't exist, dow
 else checkrom || (echo "Deleting ROM and downloading again..."; rm "${CURDIR}/${DIRNAME}/${ROMNAME}"; getrom); fi
 
 pushd "${AP_PARENTDIR}/auto-patcher" > /dev/null 2>&1
+    #Remove previous patches and logs
+    if [ -f update*.zip ]; then rm update*.zip; fi
+    if [ -f restore*.zip ]; then rm restore*.zip; fi
+    if [ -f *.log ]; then rm *.log; fi
+
     #Pull from the repo, run ./batch.sh if there were any changes and then run auto_patcher on the ROM to build the patches specified above
     if [ $(git pull | grep -c "up-to-date") = 0 ]; then ./batch.sh; fi
     ./auto_patcher "${CURDIR}/${DIRNAME}/${ROMNAME}" "${AP_PATCHES}"
 
     #If successful, move the resulting update and restore patches to ${CURDIR}
-    if [ $(test -f update*.zip) ]; then mv update*.zip "${CURDIR}/${DIRNAME}/"; else echo "update patch missing"; fi
-    if [ $(test -f restore*.zip) ]; then mv restore*.zip "${CURDIR}/${DIRNAME}/"; else echo "restore patch missing"; fi
+    if [ -f update*.zip ]; then mv update*.zip "${CURDIR}/${DIRNAME}/"; else echo "update patch missing"; fi
+    if [ -f restore*.zip ]; then mv restore*.zip "${CURDIR}/${DIRNAME}/"; else echo "restore patch missing"; fi
 popd > /dev/null 2>&1

@@ -1,17 +1,23 @@
-cm-getpatch
+droidrom-getpatch
 ========
 
-About: This script will automatically download and patch the latest (or recent if specified) Cyanogenmod ROM for your device
+About: Once configured, this script will automatically download and patch the latest (or specified) OmniROM or CyanogenMod ROM for your device
 
 Requirements: To use this script, you'll need git, wget, md5sum, grep, sed, bash and a basic set of coreutils for things like echo
 
+Credits: Written by prurigro (https://github.com/prurigro | https://aur.archlinux.org/packages/?SeB=m&K=prurigro)
+License: Distributed under the GPLv3; copies can be obtained on gnu.org @ http://www.gnu.org/copyleft/gpl.html
+
 Usage:
     1. Open the script in a text editor
-    2. Set the $DEVICE_NAME variable to the name of your device (which can be found on get.cm)
-    3. Customize the $AP_PATCHES variable with the patches you would like built for your ROMs, each separated by a comma
+    2. Find where 'ROM_TYPE' is defined and set it to "omni" to download OmniROM or "cm" to download CyanogenMod
+    3. Then find where 'DEVICE_NAME' is defined and set it to your phone's device string (the default "t0lte" is the Galaxy Note 2)
+        * You can find the list of supported models for the respective ROM @ http://dl.omnirom.org & http://download.cyanogenmod.org/
+    4. Now find where 'AP_PATCHES' is defined and list the auto-patcher patches you want applied, each separated by a comma
         * Available patches: pdroid,openpdroid,voice,v6supercharger,voice,insecure,secure,external_internal,tabletUI,3gdongle,pd2.0
-    4. Set the $AP_PARENTDIR variable to the directory the script should expect to find the auto-patcher repo
-        * If the repo does not exist when the script is run, a new copy will be cloned
-    5. Most people shouldn't need to change the $AP_GITREPO variable, but it's available should someone have a need to do so
-    6. Run the script to download and patch the latest ROM, or run the script with a specific date to download the ROM from that day
-        * The date should be written like: YYYYMMDD (eg: 20130826)
+    5. Optional: If you don't want the auto-patcher folder to be maintained in $HOME, change the 'AP_PARENTDIR' definition to your preferred location
+        * If the repo does not exist in the folder set here when the script is run, a new copy will be cloned
+    6. Optional: If you want to use a different source for the auto-patcher repository, change the 'AP_GITREPO' definition to the alternative location
+    7. Run droidrom-getpatch to get and patch the latest ROM, or specify a date or built type for a specific build
+        * Build types are special releases, such as "RC2", which CyanogenMod has used for a ROM's second release candidate
+        * The date should be written like: YYYYMMDD (eg: 20140127)
