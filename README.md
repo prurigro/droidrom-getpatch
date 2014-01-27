@@ -16,9 +16,9 @@ Distributed under the GPLv3; copies can be obtained on gnu.org @ http://www.gnu.
 
 1. Open the script in a text editor
 2. Find where 'ROM_TYPE' is defined and set it to "omni" to download OmniROM or "cm" to download CyanogenMod
-3. Then find where 'DEVICE_NAME' is defined and set it to your phone's device string (the default "t0lte" is the Galaxy Note 2) 
-⋅⋅* You can find the list of supported models for the respective ROM @ http://dl.omnirom.org & http://download.cyanogenmod.org/
-4. Now find where 'AP_PATCHES' is defined and list the auto-patcher patches you want applied, each separated by a comma 
+3. Then find where 'DEVICE_NAME' is defined and set it to your phone's device string (the default "t0lte" is the Galaxy Note 2)
+⋅⋅* You can find the list of supported models for the respective ROM @ http://dl.omnirom.org & http://download.cyanogenmod.org/ 
+4. Now find where 'AP_PATCHES' is defined and list the auto-patcher patches you want applied, each separated by a comma
 ⋅⋅* Available patches: pdroid,openpdroid,voice,v6supercharger,voice,insecure,secure,external_internal,tabletUI,3gdongle,pd2.0
 5. Optional: If you don't want the auto-patcher folder to be maintained in $HOME, change the 'AP_PARENTDIR' definition to your preferred location 
 ⋅⋅* If the repo does not exist in the folder set here when the script is run, a new copy will be cloned
